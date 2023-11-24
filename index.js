@@ -68,6 +68,9 @@ async function run() {
     //! Collections
     const allMealsCollection = client.db("MealMasterDB").collection("AllMeals");
     const usersCollection = client.db("MealMasterDB").collection("AllUsers");
+    const reviewsCollection = client
+      .db("MealMasterDB")
+      .collection("AllReviews");
 
     //! Create Token
     // app.post("/create-jwt", async (req, res) => {
@@ -191,6 +194,21 @@ async function run() {
       } else {
         res.send({ liked: true });
       }
+    });
+
+    //! Add a Review
+    app.post("/add-review", async (req, res) => {
+      const data = await req.body;
+      const id = data.mealId;
+      const result1 = await reviewsCollection.insertOne(data);
+      const result2 = await allMealsCollection.updateOne(
+        { _id: new ObjectId(id) },
+        {
+          $inc: { numReviews: 1 },
+        }
+      );
+
+      res.send({ result1, result2 });
     });
   } finally {
   }
