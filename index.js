@@ -112,6 +112,27 @@ async function run() {
 
     //!  Get all meals
     app.get("/all-meals", async (req, res) => {
+      const search = req.query.search;
+      const category = req.query.category;
+      const sbp = req.query.sbp;
+
+      const result = await allMealsCollection
+        .find({
+          $and: [
+            { mealTitle: { $regex: new RegExp(search, "i") } },
+            {
+              mealType: category == "all" ? { $exists: true } : category,
+            },
+          ],
+        })
+        .sort({ price: sbp == "l2h" ? 1 : -1 })
+        .toArray();
+      res.send(result);
+    });
+
+    //! Get All meals - Home Page
+    app.get("/all-meals-home", async (req, res) => {
+      //
       const result = await allMealsCollection.find().toArray();
       res.send(result);
     });
@@ -207,8 +228,22 @@ async function run() {
           $inc: { numReviews: 1 },
         }
       );
-
       res.send({ result1, result2 });
+    });
+
+    //! Get Reviews Meal Wise
+    app.get("/meal-wise-reviews", async (req, res) => {
+      const id = req.query.id;
+      const query = { mealId: id };
+      const result = await reviewsCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    //! Get Role
+    app.get("/get-role", async (req, res) => {
+      const email = req.query.email;
+      const result = await usersCollection.findOne({ email });
+      res.send(result.role);
     });
   } finally {
   }
