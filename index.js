@@ -67,6 +67,7 @@ async function run() {
 
     //! Collections
     const allMealsCollection = client.db("MealMasterDB").collection("AllMeals");
+    const usersCollection = client.db("MealMasterDB").collection("AllUsers");
 
     //! Create Token
     // app.post("/create-jwt", async (req, res) => {
@@ -85,6 +86,25 @@ async function run() {
     //! Remove Token
     app.post("/remove-jwt", async (req, res) => {
       res.clearCookie("token", { maxAge: 0 }).send({ success: true });
+    });
+
+    //! Save or modify user email, status in DB
+    app.put("/all-users/:email", async (req, res) => {
+      const email = req.params.email;
+      const user = req.body;
+      const query = { email: email };
+      const options = { upsert: true };
+      const isExist = await usersCollection.findOne(query);
+      console.log("User found?----->", isExist);
+      if (isExist) return res.send(isExist);
+      const result = await usersCollection.updateOne(
+        query,
+        {
+          $set: { ...user, timestamp: Date.now() },
+        },
+        options
+      );
+      res.send(result);
     });
 
     //!  Get all meals
