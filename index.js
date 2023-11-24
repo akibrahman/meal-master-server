@@ -19,6 +19,7 @@ app.use(
       "https://jobnest-akib.web.app",
       "https://jobnest-akib.firebaseapp.com",
       "http://localhost:5176",
+      "http://localhost:5174",
     ],
     // origin: "http://localhost:5176",
     // credentials: true,
@@ -65,10 +66,7 @@ async function run() {
     console.log("MongoDB Running");
 
     //! Collections
-    // const allJobsCollection = client.db("JobNestDB").collection("AllJobs");
-    // const appliedJobsCollection = client
-    //   .db("JobNestDB")
-    //   .collection("AppliedJobs");
+    const allMealsCollection = client.db("MealMasterDB").collection("AllMeals");
 
     //! Create Token
     // app.post("/create-jwt", async (req, res) => {
@@ -84,10 +82,15 @@ async function run() {
     //     })
     //     .send({ success: true });
     // });
-
     //! Remove Token
     app.post("/remove-jwt", async (req, res) => {
       res.clearCookie("token", { maxAge: 0 }).send({ success: true });
+    });
+
+    //!  Get all meals
+    app.get("/all-meals", async (req, res) => {
+      const result = await allMealsCollection.find().toArray();
+      res.send(result);
     });
   } finally {
   }
