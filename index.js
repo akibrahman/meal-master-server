@@ -112,6 +112,86 @@ async function run() {
       const result = await allMealsCollection.find().toArray();
       res.send(result);
     });
+
+    //! Get one Meal
+    app.get("/meal/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await allMealsCollection.findOne(query);
+      res.send(result);
+    });
+
+    //! Inc Like of a Meal
+    app.put("/inc-like", async (req, res) => {
+      const data = await req.body;
+      const user = await usersCollection.findOne({ email: data.email });
+      const newArray = [...user.likings, data.id];
+      const userResult = await usersCollection.updateOne(
+        { email: data.email },
+        {
+          $set: {
+            likings: newArray,
+          },
+        }
+      );
+      const mealResult = await allMealsCollection.updateOne(
+        { _id: new ObjectId(data.id) },
+        {
+          $inc: { likes: 1 },
+        }
+      );
+      res.send({ userResult, mealResult });
+    });
+
+    //! Dec Like of a Meal
+    app.put("/dec-like", async (req, res) => {
+      const data = await req.body;
+      const user = await usersCollection.findOne({ email: data.email });
+      const newArray = [...user.likings];
+      const index = newArray.indexOf(data.id);
+      newArray.splice(index, 1);
+
+      const userResult = await usersCollection.updateOne(
+        { email: data.email },
+        {
+          $set: {
+            likings: newArray,
+          },
+        }
+      );
+      const mealResult = await allMealsCollection.updateOne(
+        { _id: new ObjectId(data.id) },
+        {
+          $inc: { likes: -1 },
+        }
+      );
+      res.send({ userResult, mealResult });
+    });
+
+    //! Meal is Liked by user or not
+    app.get("/is-liked", async (req, res) => {
+      const email = req.query.email;
+      const id = req.query.id;
+      const data = await usersCollection
+        .find({
+          $and: [
+            {
+              likings: {
+                $in: [id],
+              },
+            },
+            {
+              email: email,
+            },
+          ],
+        })
+        .toArray();
+      if (data.length == 0) {
+        res.send({ liked: false });
+      } else {
+        res.send({ liked: true });
+      }
+    });
   } finally {
   }
 }
