@@ -99,13 +99,51 @@ async function run() {
       const options = { upsert: true };
       const isExist = await usersCollection.findOne(query);
       console.log("User found?----->", isExist);
-      if (isExist) return res.send(isExist);
+      if (isExist) {
+        await usersCollection.updateOne(
+          query,
+          {
+            $set: { name: user.name },
+          },
+          options
+        );
+        return res.send(isExist);
+      }
       const result = await usersCollection.updateOne(
         query,
         {
           $set: { ...user, timestamp: Date.now() },
         },
         options
+      );
+      res.send(result);
+    });
+
+    //! Get all Users
+    app.get("/all-users", async (req, res) => {
+      const search = req.query.search;
+
+      const result = await usersCollection
+        .find({
+          $or: [
+            { name: { $regex: new RegExp(search, "i") } },
+            { email: { $regex: new RegExp(search, "i") } },
+          ],
+        })
+        .toArray();
+      res.send(result);
+    });
+
+    //! Make one user Admin
+    app.put("/make-admin/:email", async (req, res) => {
+      const email = req.params.email;
+      const result = await usersCollection.updateOne(
+        { email },
+        {
+          $set: {
+            role: "admin",
+          },
+        }
       );
       res.send(result);
     });
