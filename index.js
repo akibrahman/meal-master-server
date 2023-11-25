@@ -322,11 +322,76 @@ async function run() {
       res.send({ result1, result2 });
     });
 
+    //! Get all reviews
+    app.get("/all-reviews", async (req, res) => {
+      const result = await reviewsCollection.find().toArray();
+      res.send(result);
+    });
+
     //! Get Reviews Meal Wise
     app.get("/meal-wise-reviews", async (req, res) => {
       const id = req.query.id;
       const query = { mealId: id };
       const result = await reviewsCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    //! Delete a Review and Decrise review count
+    app.patch("/delete-one-review", async (req, res) => {
+      const reviewId = req.query.reviewId;
+      const mealId = req.query.mealId;
+      console.log(reviewId);
+      console.log(mealId);
+      await reviewsCollection.deleteOne({
+        _id: new ObjectId(reviewId),
+      });
+      await allMealsCollection.updateOne(
+        { _id: new ObjectId(mealId) },
+        {
+          $inc: { numReviews: -1 },
+        }
+      );
+      res.send({ success: true });
+    });
+
+    //! All Reviews for Admin
+    app.get("/all-reviews-aggrigate", async (req, res) => {
+      const sort = req.query.sort;
+      const dir = req.query.dir;
+      const sortField =
+        sort == "sbl" ? "likes" : sort == "sbr" ? "reviews" : null;
+      const result = await reviewsCollection
+        .aggregate([
+          {
+            $project: { mealId: { $toObjectId: "$mealId" } },
+          },
+          {
+            $lookup: {
+              from: "AllMeals",
+              localField: "mealId",
+              foreignField: "_id",
+              as: "meal",
+            },
+          },
+          {
+            $unwind: "$meal",
+          },
+          {
+            $project: {
+              _id: 1,
+              mealId: 1,
+              mealTitle: "$meal.mealTitle",
+              likes: "$meal.likes",
+              reviews: "$meal.numReviews",
+            },
+          },
+          {
+            $sort: {
+              [sortField]: dir == "lth" ? 1 : -1,
+            },
+          },
+        ])
+        .toArray();
       res.send(result);
     });
 
