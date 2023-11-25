@@ -178,11 +178,47 @@ async function run() {
       res.send(result);
     });
 
+    //! Get All meals - Admin Page
+    app.get("/all-meals-admin", async (req, res) => {
+      const result = await allMealsCollection.find().toArray();
+      res.send(result);
+    });
+
+    //! Delete a Meal - Admin Page
+    app.delete("/delete-a-meal-admin/:id", async (req, res) => {
+      const id = req.params.id;
+      const result = await allMealsCollection.deleteOne({
+        _id: new ObjectId(id),
+      });
+      res.send(result);
+    });
+
     //! Get one Meal
     app.get("/meal/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await allMealsCollection.findOne(query);
+      res.send(result);
+    });
+
+    //! Update one meal
+    app.patch("/update-one-meal/:id", async (req, res) => {
+      const data = await req.body;
+      const id = req.params.id;
+      const result = await allMealsCollection.updateOne(
+        { _id: new ObjectId(id) },
+        {
+          $set: {
+            mealTitle: data.mealTitle,
+            mealType: data.mealType,
+            price: data.price,
+            mealImage: data.mealImage,
+            ingredients: data.ingredients,
+            description: data.description,
+            rating: data.rating,
+          },
+        }
+      );
       res.send(result);
     });
 
