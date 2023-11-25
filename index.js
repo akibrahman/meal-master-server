@@ -67,6 +67,9 @@ async function run() {
 
     //! Collections
     const allMealsCollection = client.db("MealMasterDB").collection("AllMeals");
+    const allUpcomingMealsCollection = client
+      .db("MealMasterDB")
+      .collection("AllUpcomingMeals");
     const usersCollection = client.db("MealMasterDB").collection("AllUsers");
     const reviewsCollection = client
       .db("MealMasterDB")
@@ -180,6 +183,20 @@ async function run() {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await allMealsCollection.findOne(query);
+      res.send(result);
+    });
+
+    //! Add a Meal - Admin
+    app.post("/add-meal", async (req, res) => {
+      const data = req.body;
+      const result = await allMealsCollection.insertOne(data);
+      res.send(result);
+    });
+
+    //! Add a Meal to Upcoming - Admin
+    app.post("/add-meal-upcoming", async (req, res) => {
+      const data = req.body;
+      const result = await allUpcomingMealsCollection.insertOne(data);
       res.send(result);
     });
 
