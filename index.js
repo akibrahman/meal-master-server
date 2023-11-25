@@ -2,6 +2,9 @@ const express = require("express");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
+const stripe = require("stripe")(
+  "sk_test_51JNWijH1dNBPX31WU3trCGNpFtwUCRrNU5dgI1EmM4jOsLeyzCMcp7mQSEyPJO2z0rGKu8D7CL0lQrjcZopKVQVk00LI9e0Rpl"
+);
 require("dotenv").config();
 const port = process.env.PORT || 5000;
 const app = express();
@@ -92,6 +95,22 @@ async function run() {
     //! Remove Token
     app.post("/remove-jwt", async (req, res) => {
       res.clearCookie("token", { maxAge: 0 }).send({ success: true });
+    });
+
+    //! Payment Call - Stripe
+    app.post("/create-payment-intent", async (req, res) => {
+      const { price } = req.body;
+      const amount = parseInt(parseFloat(price) * 100);
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+        payment_method_types: ["card"],
+      });
+
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      });
     });
 
     //! Save or modify user email, status in DB
@@ -400,6 +419,13 @@ async function run() {
       const email = req.query.email;
       const result = await usersCollection.findOne({ email });
       res.send(result.role);
+    });
+
+    //! Get Package
+    app.get("/get-package", async (req, res) => {
+      const email = req.query.email;
+      const result = await usersCollection.findOne({ email });
+      res.send(result.badge);
     });
   } finally {
   }
