@@ -257,7 +257,10 @@ async function run() {
     //! Add a Meal to Upcoming - Admin
     app.post("/add-meal-upcoming", async (req, res) => {
       const data = req.body;
-      const result = await allUpcomingMealsCollection.insertOne(data);
+      const UpcomingMealData = { mainMealData: data, likes: 0 };
+      const result = await allUpcomingMealsCollection.insertOne(
+        UpcomingMealData
+      );
       res.send(result);
     });
 
@@ -506,6 +509,30 @@ async function run() {
         res.send(result);
       } else if (status == "served") {
         res.send({ served: true });
+      }
+    });
+    //! Get all Upcoming Meals
+    app.get("/all-upcoming-meals", async (req, res) => {
+      const result = await allUpcomingMealsCollection.find().toArray();
+      res.send(result);
+    });
+
+    //! From Upcoming Meals to Meals
+    app.post("/from-upcoming-to-meals/:id", async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      try {
+        const upcomingMeal = await allUpcomingMealsCollection.findOne({
+          _id: new ObjectId(id),
+        });
+        const meal = upcomingMeal.mainMealData;
+        await allMealsCollection.insertOne(meal);
+        await allUpcomingMealsCollection.deleteOne({
+          _id: new ObjectId(id),
+        });
+        res.send({ success: true });
+      } catch (error) {
+        res.send(error);
       }
     });
   } finally {
