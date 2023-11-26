@@ -397,6 +397,29 @@ async function run() {
       res.send({ result1, result2 });
     });
 
+    //! get a Review
+    app.get("/review/:id", async (req, res) => {
+      const id = req.params.id;
+      const result = await reviewsCollection.findOne({ _id: new ObjectId(id) });
+      res.send(result);
+    });
+
+    //! Update a Review
+    app.patch("/review-update/:id", async (req, res) => {
+      const id = req.params.id;
+      const data = await req.body;
+      const result = await reviewsCollection.updateOne(
+        { _id: new ObjectId(id) },
+        {
+          $set: {
+            rating: data.newRating,
+            review: data.newReviewText,
+          },
+        }
+      );
+      res.send(result);
+    });
+
     //! Delete a Review &  Dec a review count
     app.patch("/delete-a-my-review", async (req, res) => {
       const reviewId = req.query.reviewId;
@@ -418,11 +441,11 @@ async function run() {
       }
     });
 
-    //! Get all reviews - Admin
-    app.get("/all-reviews", async (req, res) => {
-      const result = await reviewsCollection.find().toArray();
-      res.send(result);
-    });
+    // Get all reviews - Admin
+    // app.get("/all-reviews", async (req, res) => {
+    //   const result = await reviewsCollection.find().toArray();
+    //   res.send(result);
+    // });
 
     //! Get Reviews Meal Wise
     app.get("/meal-wise-reviews", async (req, res) => {
