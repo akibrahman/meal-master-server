@@ -523,16 +523,88 @@ async function run() {
       res.send(result);
     });
 
-    //! Get All Requested Meal -  Admin
+    //! Delete a Requested Meal
+    app.delete("/delete-requested-meal/:id", async (req, res) => {
+      const id = req.params.id;
+      const result = await requestedMealCollection.deleteOne({
+        _id: new ObjectId(id),
+      });
+      res.send(result);
+    });
+
+    //! Get All Requested Meals -  Admin
     app.get("/all-requested-meals", async (req, res) => {
       const search = req.query.search;
       const result = await requestedMealCollection
-        .find({
-          $or: [
-            { name: { $regex: new RegExp(search, "i") } },
-            { email: { $regex: new RegExp(search, "i") } },
-          ],
-        })
+        .aggregate([
+          {
+            $project: {
+              name: 1,
+              email: 1,
+              status: 1,
+              mealId: { $toObjectId: "$mealId" },
+            },
+          },
+          {
+            $lookup: {
+              from: "AllMeals",
+              localField: "mealId",
+              foreignField: "_id",
+              as: "meal",
+            },
+          },
+          {
+            $unwind: "$meal",
+          },
+          {
+            $match: {
+              $or: [
+                { name: { $regex: new RegExp(search, "i") } },
+                { email: { $regex: new RegExp(search, "i") } },
+              ],
+            },
+          },
+        ])
+        .toArray();
+      res.send(result);
+    });
+
+    //! Get All Requested Meals -  User
+    app.get("/my-requested-meals", async (req, res) => {
+      const email = req.query.email;
+      const sort = req.query.sort;
+      const result = await requestedMealCollection
+        .aggregate([
+          {
+            $project: {
+              name: 1,
+              email: 1,
+              status: 1,
+              mealId: { $toObjectId: "$mealId" },
+            },
+          },
+          {
+            $lookup: {
+              from: "AllMeals",
+              localField: "mealId",
+              foreignField: "_id",
+              as: "meal",
+            },
+          },
+          {
+            $unwind: "$meal",
+          },
+          {
+            $match: {
+              email: { $eq: email },
+            },
+          },
+          {
+            $sort: {
+              status: sort == "del" ? 1 : -1,
+            },
+          },
+        ])
         .toArray();
       res.send(result);
     });
@@ -549,13 +621,13 @@ async function run() {
           { _id: new ObjectId(id) },
           {
             $set: {
-              status: "served",
+              status: "delivered",
             },
           }
         );
         res.send(result);
-      } else if (status == "served") {
-        res.send({ served: true });
+      } else if (status == "delivered") {
+        res.send({ delivered: true });
       }
     });
     //! Get all Upcoming Meals
