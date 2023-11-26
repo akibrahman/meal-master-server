@@ -486,6 +486,28 @@ async function run() {
         .toArray();
       res.send(result);
     });
+
+    //! Update a Requested meal's status - Admin
+    app.patch("/update-requested-meal/:id", async (req, res) => {
+      const id = req.params.id;
+      const requestedMeal = await requestedMealCollection.findOne({
+        _id: new ObjectId(id),
+      });
+      const status = requestedMeal.status;
+      if (status == "pending") {
+        const result = await requestedMealCollection.updateOne(
+          { _id: new ObjectId(id) },
+          {
+            $set: {
+              status: "served",
+            },
+          }
+        );
+        res.send(result);
+      } else if (status == "served") {
+        res.send({ served: true });
+      }
+    });
   } finally {
   }
 }
