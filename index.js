@@ -77,6 +77,9 @@ async function run() {
     const reviewsCollection = client
       .db("MealMasterDB")
       .collection("AllReviews");
+    const paymentsCollection = client
+      .db("MealMasterDB")
+      .collection("AllPayments");
 
     //! Create Token
     // app.post("/create-jwt", async (req, res) => {
@@ -426,6 +429,28 @@ async function run() {
       const email = req.query.email;
       const result = await usersCollection.findOne({ email });
       res.send(result.badge);
+    });
+
+    //! Change Package
+    app.patch("/change-package", async (req, res) => {
+      const email = req.query.email;
+      const pack = req.query.pack;
+      const result = await usersCollection.updateOne(
+        { email },
+        {
+          $set: {
+            badge: `bronze-${pack}`,
+          },
+        }
+      );
+      res.send(result);
+    });
+
+    //! Create Subscription history
+    app.post("/subscription-handler", async (req, res) => {
+      const data = await req.body;
+      const result = await paymentsCollection.insertOne(data);
+      res.send(result);
     });
   } finally {
   }
