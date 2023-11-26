@@ -336,6 +336,53 @@ async function run() {
       }
     });
 
+    //! Inc Like of a Upcoming Meal
+    app.put("/inc-like-upcoming", async (req, res) => {
+      const data = await req.body;
+      const user = await usersCollection.findOne({ email: data.email });
+      const newArray = [...user.ulikings, data.id];
+      const userResult = await usersCollection.updateOne(
+        { email: data.email },
+        {
+          $set: {
+            ulikings: newArray,
+          },
+        }
+      );
+      const mealResult = await allUpcomingMealsCollection.updateOne(
+        { _id: new ObjectId(data.id) },
+        {
+          $inc: { likes: 1 },
+        }
+      );
+      res.send({ userResult, mealResult });
+    });
+
+    //! Upcoming Meal is Liked by user or not
+    app.get("/is-liked-upcoming", async (req, res) => {
+      const email = req.query.email;
+      const id = req.query.id;
+      const data = await usersCollection
+        .find({
+          $and: [
+            {
+              ulikings: {
+                $in: [id],
+              },
+            },
+            {
+              email: email,
+            },
+          ],
+        })
+        .toArray();
+      if (data.length == 0) {
+        res.send({ liked: false });
+      } else {
+        res.send({ liked: true });
+      }
+    });
+
     //! Add a Review
     app.post("/add-review", async (req, res) => {
       const data = await req.body;
