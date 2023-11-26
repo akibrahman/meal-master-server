@@ -80,6 +80,9 @@ async function run() {
     const paymentsCollection = client
       .db("MealMasterDB")
       .collection("AllPayments");
+    const requestedMealCollection = client
+      .db("MealMasterDB")
+      .collection("AllRequestedMeals");
 
     //! Create Token
     // app.post("/create-jwt", async (req, res) => {
@@ -144,7 +147,7 @@ async function run() {
       res.send(result);
     });
 
-    //! Get all Users
+    //! Get all Users Admin
     app.get("/all-users", async (req, res) => {
       const search = req.query.search;
 
@@ -159,7 +162,7 @@ async function run() {
       res.send(result);
     });
 
-    //! Make one user Admin
+    //! Make one user Admin - Admin
     app.put("/make-admin/:email", async (req, res) => {
       const email = req.params.email;
       const result = await usersCollection.updateOne(
@@ -173,7 +176,7 @@ async function run() {
       res.send(result);
     });
 
-    //!  Get all meals
+    //!  Get all meals - Meals Page
     app.get("/all-meals", async (req, res) => {
       const search = req.query.search;
       const category = req.query.category;
@@ -223,7 +226,7 @@ async function run() {
       res.send(result);
     });
 
-    //! Update one meal
+    //! Update one meal - Admin
     app.patch("/update-one-meal/:id", async (req, res) => {
       const data = await req.body;
       const id = req.params.id;
@@ -344,7 +347,7 @@ async function run() {
       res.send({ result1, result2 });
     });
 
-    //! Get all reviews
+    //! Get all reviews - Admin
     app.get("/all-reviews", async (req, res) => {
       const result = await reviewsCollection.find().toArray();
       res.send(result);
@@ -358,7 +361,7 @@ async function run() {
       res.send(result);
     });
 
-    //! Delete a Review and Decrise review count
+    //! Delete a Review and Decrise review count - Admin
     app.patch("/delete-one-review", async (req, res) => {
       const reviewId = req.query.reviewId;
       const mealId = req.query.mealId;
@@ -376,7 +379,7 @@ async function run() {
       res.send({ success: true });
     });
 
-    //! All Reviews for Admin
+    //! All Reviews - Admin
     app.get("/all-reviews-aggrigate", async (req, res) => {
       const sort = req.query.sort;
       const dir = req.query.dir;
@@ -450,6 +453,37 @@ async function run() {
     app.post("/subscription-handler", async (req, res) => {
       const data = await req.body;
       const result = await paymentsCollection.insertOne(data);
+      res.send(result);
+    });
+
+    //! Check meal requested or not
+    app.get("/check-requested-meal", async (req, res) => {
+      const id = req.query.id;
+      const email = req.query.email;
+      const isExistRequest = await requestedMealCollection.findOne({
+        $and: [{ mealId: id }, { email }],
+      });
+      res.send(isExistRequest);
+    });
+
+    //! Add a requested Meal
+    app.post("/add-requested-meal", async (req, res) => {
+      const data = await req.body;
+      const result = await requestedMealCollection.insertOne(data);
+      res.send(result);
+    });
+
+    //! Get All Requested Meal -  Admin
+    app.get("/all-requested-meals", async (req, res) => {
+      const search = req.query.search;
+      const result = await requestedMealCollection
+        .find({
+          $or: [
+            { name: { $regex: new RegExp(search, "i") } },
+            { email: { $regex: new RegExp(search, "i") } },
+          ],
+        })
+        .toArray();
       res.send(result);
     });
   } finally {
