@@ -397,6 +397,27 @@ async function run() {
       res.send({ result1, result2 });
     });
 
+    //! Delete a Review &  Dec a review count
+    app.patch("/delete-a-my-review", async (req, res) => {
+      const reviewId = req.query.reviewId;
+      const mealId = req.query.mealId;
+
+      try {
+        await reviewsCollection.deleteOne({
+          _id: new ObjectId(reviewId),
+        });
+        await allMealsCollection.updateOne(
+          { _id: new ObjectId(mealId) },
+          {
+            $inc: { numReviews: -1 },
+          }
+        );
+        res.send({ success: true });
+      } catch (error) {
+        res.send({ data: error, success: false });
+      }
+    });
+
     //! Get all reviews - Admin
     app.get("/all-reviews", async (req, res) => {
       const result = await reviewsCollection.find().toArray();
@@ -463,6 +484,40 @@ async function run() {
           {
             $sort: {
               [sortField]: dir == "lth" ? 1 : -1,
+            },
+          },
+        ])
+        .toArray();
+      res.send(result);
+    });
+
+    //! All Reviews - User
+    app.get("/my-reviews-aggrigate", async (req, res) => {
+      const email = req.query.email;
+      const result = await reviewsCollection
+        .aggregate([
+          {
+            $project: {
+              mealId: { $toObjectId: "$mealId" },
+              email: 1,
+              rating: 1,
+              review: 1,
+            },
+          },
+          {
+            $lookup: {
+              from: "AllMeals",
+              localField: "mealId",
+              foreignField: "_id",
+              as: "meal",
+            },
+          },
+          {
+            $unwind: "$meal",
+          },
+          {
+            $match: {
+              email: { $eq: email },
             },
           },
         ])
