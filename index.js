@@ -18,35 +18,28 @@ const {
 //! Middlewares
 app.use(
   cors({
-    origin: [
-      "https://jobnest-akib.web.app",
-      "https://jobnest-akib.firebaseapp.com",
-      "http://localhost:5176",
-      "http://localhost:5174",
-    ],
-    // origin: "http://localhost:5176",
-    // credentials: true,
-    // optionsSuccessStatus: 200,
+    origin: ["http://localhost:5176", "http://localhost:5174"],
+    credentials: true,
+    optionsSuccessStatus: 200,
   })
 );
 app.use(express.json());
-
 app.use(cookieParser());
 
 //! Verify Token Middleware
-// const verifyToken = async (req, res, next) => {
-//   const token = req?.cookies?.token;
-//   if (!token) {
-//     return res.status(401).send({ success: false, message: "Unauthorized" });
-//   }
-//   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
-//     if (err) {
-//       return res.status(401).send({ success: false, message: "Unauthorized" });
-//     }
-//     req.data = decoded;
-//     next();
-//   });
-// };
+const verifyToken = async (req, res, next) => {
+  const token = req?.cookies?.MealMaster_Token;
+  if (!token) {
+    return res.status(401).send({ success: false, message: "Unauthorized" });
+  }
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(401).send({ success: false, message: "Unauthorized" });
+    }
+    req.data = decoded;
+    next();
+  });
+};
 
 //! Creating MongoDB Environment
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.bfs9yhw.mongodb.net/?retryWrites=true&w=majority`;
@@ -84,23 +77,26 @@ async function run() {
       .db("MealMasterDB")
       .collection("AllRequestedMeals");
 
-    //! Create Token
-    // app.post("/create-jwt", async (req, res) => {
-    //   const user = await req.body;
-    //   const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
-    //     expiresIn: "1h",
-    //   });
-    //   res
-    //     .cookie("token", token, {
-    //       httpOnly: true,
-    //       secure: true,
-    //       sameSite: "none",
-    //     })
-    //     .send({ success: true });
-    // });
-    //! Remove Token
-    app.post("/remove-jwt", async (req, res) => {
-      res.clearCookie("token", { maxAge: 0 }).send({ success: true });
+    //! Token Generator
+    app.post("/create-jwt", async (req, res) => {
+      const user = await req.body;
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: "1h",
+      });
+      res
+        .cookie("MealMaster_Token", token, {
+          httpOnly: true,
+          secure: true,
+          sameSite: "none",
+        })
+        .send({ success: true });
+    });
+
+    //!Token Remove
+    app.post("/remove-jwt", (req, res) => {
+      res
+        .clearCookie("MealMaster_Token", { maxAge: 0 })
+        .send({ success: true });
     });
 
     //! Payment Call - Stripe
@@ -147,8 +143,6 @@ async function run() {
       res.send(result);
     });
 
-    //! Update user's Profile
-
     //! Get all Users Admin
     app.get("/all-users", async (req, res) => {
       const search = req.query.search;
@@ -179,7 +173,7 @@ async function run() {
     });
 
     //! Get one user - User
-    app.get("/my-profile", async (req, res) => {
+    app.get("/my-profile", verifyToken, async (req, res) => {
       const email = req.query.email;
       const user = await usersCollection.findOne({ email });
       res.send(user);
@@ -344,7 +338,7 @@ async function run() {
     });
 
     //! Meal is Liked by user or not
-    app.get("/is-liked", async (req, res) => {
+    app.get("/is-liked", verifyToken, async (req, res) => {
       const email = req.query.email;
       const id = req.query.id;
       const data = await usersCollection
@@ -547,7 +541,7 @@ async function run() {
     });
 
     //! All Reviews - User
-    app.get("/my-reviews-aggrigate", async (req, res) => {
+    app.get("/my-reviews-aggrigate", verifyToken, async (req, res) => {
       const email = req.query.email;
       const result = await reviewsCollection
         .aggregate([
@@ -581,14 +575,14 @@ async function run() {
     });
 
     //! Get Role
-    app.get("/get-role", async (req, res) => {
+    app.get("/get-role", verifyToken, async (req, res) => {
       const email = req.query.email;
       const result = await usersCollection.findOne({ email });
       res.send(result.role);
     });
 
     //! Get Package
-    app.get("/get-package", async (req, res) => {
+    app.get("/get-package", verifyToken, async (req, res) => {
       const email = req.query.email;
       const result = await usersCollection.findOne({ email });
       res.send(result.badge);
@@ -680,7 +674,7 @@ async function run() {
     });
 
     //! Get All Requested Meals -  User
-    app.get("/my-requested-meals", async (req, res) => {
+    app.get("/my-requested-meals", verifyToken, async (req, res) => {
       const email = req.query.email;
       const sort = req.query.sort;
       const result = await requestedMealCollection
