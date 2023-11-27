@@ -77,6 +77,17 @@ async function run() {
       .db("MealMasterDB")
       .collection("AllRequestedMeals");
 
+    //! Verify Admin
+    const verifyAdmin = async (req, res, next) => {
+      const adminEmail = req.data.email;
+      const user = await usersCollection.findOne({ email: adminEmail });
+      const isAdmin = user?.role === "admin";
+      if (!isAdmin) {
+        return res.status(403).send({ message: "Not Admin" });
+      }
+      next();
+    };
+
     //! Token Generator
     app.post("/create-jwt", async (req, res) => {
       const user = await req.body;
@@ -144,7 +155,7 @@ async function run() {
     });
 
     //! Get all Users Admin
-    app.get("/all-users", async (req, res) => {
+    app.get("/all-users", verifyToken, verifyAdmin, async (req, res) => {
       const search = req.query.search;
 
       const result = await usersCollection
@@ -159,18 +170,23 @@ async function run() {
     });
 
     //! Make one user Admin - Admin
-    app.put("/make-admin/:email", async (req, res) => {
-      const email = req.params.email;
-      const result = await usersCollection.updateOne(
-        { email },
-        {
-          $set: {
-            role: "admin",
-          },
-        }
-      );
-      res.send(result);
-    });
+    app.put(
+      "/make-admin/:email",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const email = req.params.email;
+        const result = await usersCollection.updateOne(
+          { email },
+          {
+            $set: {
+              role: "admin",
+            },
+          }
+        );
+        res.send(result);
+      }
+    );
 
     //! Get one user - User
     app.get("/my-profile", verifyToken, async (req, res) => {
@@ -218,31 +234,36 @@ async function run() {
     });
 
     //! Get All meals - Admin Page
-    app.get("/all-meals-admin", async (req, res) => {
+    app.get("/all-meals-admin", verifyToken, verifyAdmin, async (req, res) => {
       const result = await allMealsCollection.find().toArray();
       res.send(result);
     });
 
     //! Delete a Meal - Admin Page
-    app.delete("/delete-a-meal-admin/:id", async (req, res) => {
-      const id = req.params.id;
-      try {
-        await allMealsCollection.deleteOne({
-          _id: new ObjectId(id),
-        });
-        await requestedMealCollection.deleteOne({ mealId: id });
-        await reviewsCollection.deleteOne({ mealId: id });
-        await usersCollection.updateMany(
-          { likings: { $in: [id] } },
-          {
-            $pull: { likings: id },
-          }
-        );
-        res.send({ success: true });
-      } catch (error) {
-        res.send({ success: true, error });
+    app.delete(
+      "/delete-a-meal-admin/:id",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req.params.id;
+        try {
+          await allMealsCollection.deleteOne({
+            _id: new ObjectId(id),
+          });
+          await requestedMealCollection.deleteOne({ mealId: id });
+          await reviewsCollection.deleteOne({ mealId: id });
+          await usersCollection.updateMany(
+            { likings: { $in: [id] } },
+            {
+              $pull: { likings: id },
+            }
+          );
+          res.send({ success: true });
+        } catch (error) {
+          res.send({ success: true, error });
+        }
       }
-    });
+    );
 
     //! Get one Meal
     app.get("/meal/:id", async (req, res) => {
@@ -274,21 +295,26 @@ async function run() {
     });
 
     //! Add a Meal - Admin
-    app.post("/add-meal", async (req, res) => {
+    app.post("/add-meal", verifyToken, verifyAdmin, async (req, res) => {
       const data = req.body;
       const result = await allMealsCollection.insertOne(data);
       res.send(result);
     });
 
     //! Add a Meal to Upcoming - Admin
-    app.post("/add-meal-upcoming", async (req, res) => {
-      const data = req.body;
-      const UpcomingMealData = { mainMealData: data, likes: 0 };
-      const result = await allUpcomingMealsCollection.insertOne(
-        UpcomingMealData
-      );
-      res.send(result);
-    });
+    app.post(
+      "/add-meal-upcoming",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const data = req.body;
+        const UpcomingMealData = { mainMealData: data, likes: 0 };
+        const result = await allUpcomingMealsCollection.insertOne(
+          UpcomingMealData
+        );
+        res.send(result);
+      }
+    );
 
     //! Inc Like of a Meal
     app.put("/inc-like", async (req, res) => {
@@ -338,7 +364,7 @@ async function run() {
     });
 
     //! Meal is Liked by user or not
-    app.get("/is-liked", verifyToken, async (req, res) => {
+    app.get("/is-liked", async (req, res) => {
       const email = req.query.email;
       const id = req.query.id;
       const data = await usersCollection
@@ -500,45 +526,50 @@ async function run() {
     });
 
     //! All Reviews - Admin
-    app.get("/all-reviews-aggrigate", async (req, res) => {
-      const sort = req.query.sort;
-      const dir = req.query.dir;
-      const sortField =
-        sort == "sbl" ? "likes" : sort == "sbr" ? "reviews" : null;
-      const result = await reviewsCollection
-        .aggregate([
-          {
-            $project: { mealId: { $toObjectId: "$mealId" } },
-          },
-          {
-            $lookup: {
-              from: "AllMeals",
-              localField: "mealId",
-              foreignField: "_id",
-              as: "meal",
+    app.get(
+      "/all-reviews-aggrigate",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const sort = req.query.sort;
+        const dir = req.query.dir;
+        const sortField =
+          sort == "sbl" ? "likes" : sort == "sbr" ? "reviews" : null;
+        const result = await reviewsCollection
+          .aggregate([
+            {
+              $project: { mealId: { $toObjectId: "$mealId" } },
             },
-          },
-          {
-            $unwind: "$meal",
-          },
-          {
-            $project: {
-              _id: 1,
-              mealId: 1,
-              mealTitle: "$meal.mealTitle",
-              likes: "$meal.likes",
-              reviews: "$meal.numReviews",
+            {
+              $lookup: {
+                from: "AllMeals",
+                localField: "mealId",
+                foreignField: "_id",
+                as: "meal",
+              },
             },
-          },
-          {
-            $sort: {
-              [sortField]: dir == "lth" ? 1 : -1,
+            {
+              $unwind: "$meal",
             },
-          },
-        ])
-        .toArray();
-      res.send(result);
-    });
+            {
+              $project: {
+                _id: 1,
+                mealId: 1,
+                mealTitle: "$meal.mealTitle",
+                likes: "$meal.likes",
+                reviews: "$meal.numReviews",
+              },
+            },
+            {
+              $sort: {
+                [sortField]: dir == "lth" ? 1 : -1,
+              },
+            },
+          ])
+          .toArray();
+        res.send(result);
+      }
+    );
 
     //! All Reviews - User
     app.get("/my-reviews-aggrigate", verifyToken, async (req, res) => {
@@ -637,41 +668,46 @@ async function run() {
     });
 
     //! Get All Requested Meals -  Admin
-    app.get("/all-requested-meals", async (req, res) => {
-      const search = req.query.search;
-      const result = await requestedMealCollection
-        .aggregate([
-          {
-            $project: {
-              name: 1,
-              email: 1,
-              status: 1,
-              mealId: { $toObjectId: "$mealId" },
+    app.get(
+      "/all-requested-meals",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const search = req.query.search;
+        const result = await requestedMealCollection
+          .aggregate([
+            {
+              $project: {
+                name: 1,
+                email: 1,
+                status: 1,
+                mealId: { $toObjectId: "$mealId" },
+              },
             },
-          },
-          {
-            $lookup: {
-              from: "AllMeals",
-              localField: "mealId",
-              foreignField: "_id",
-              as: "meal",
+            {
+              $lookup: {
+                from: "AllMeals",
+                localField: "mealId",
+                foreignField: "_id",
+                as: "meal",
+              },
             },
-          },
-          {
-            $unwind: "$meal",
-          },
-          {
-            $match: {
-              $or: [
-                { name: { $regex: new RegExp(search, "i") } },
-                { email: { $regex: new RegExp(search, "i") } },
-              ],
+            {
+              $unwind: "$meal",
             },
-          },
-        ])
-        .toArray();
-      res.send(result);
-    });
+            {
+              $match: {
+                $or: [
+                  { name: { $regex: new RegExp(search, "i") } },
+                  { email: { $regex: new RegExp(search, "i") } },
+                ],
+              },
+            },
+          ])
+          .toArray();
+        res.send(result);
+      }
+    );
 
     //! Get All Requested Meals -  User
     app.get("/my-requested-meals", verifyToken, async (req, res) => {
@@ -714,26 +750,31 @@ async function run() {
     });
 
     //! Update a Requested meal's status - Admin
-    app.patch("/update-requested-meal/:id", async (req, res) => {
-      const id = req.params.id;
-      const requestedMeal = await requestedMealCollection.findOne({
-        _id: new ObjectId(id),
-      });
-      const status = requestedMeal.status;
-      if (status == "pending") {
-        const result = await requestedMealCollection.updateOne(
-          { _id: new ObjectId(id) },
-          {
-            $set: {
-              status: "delivered",
-            },
-          }
-        );
-        res.send(result);
-      } else if (status == "delivered") {
-        res.send({ delivered: true });
+    app.patch(
+      "/update-requested-meal/:id",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req.params.id;
+        const requestedMeal = await requestedMealCollection.findOne({
+          _id: new ObjectId(id),
+        });
+        const status = requestedMeal.status;
+        if (status == "pending") {
+          const result = await requestedMealCollection.updateOne(
+            { _id: new ObjectId(id) },
+            {
+              $set: {
+                status: "delivered",
+              },
+            }
+          );
+          res.send(result);
+        } else if (status == "delivered") {
+          res.send({ delivered: true });
+        }
       }
-    });
+    );
     //! Get all Upcoming Meals
     app.get("/all-upcoming-meals", async (req, res) => {
       const result = await allUpcomingMealsCollection.find().toArray();
@@ -741,23 +782,28 @@ async function run() {
     });
 
     //! From Upcoming Meals to Meals
-    app.post("/from-upcoming-to-meals/:id", async (req, res) => {
-      const id = req.params.id;
-      console.log(id);
-      try {
-        const upcomingMeal = await allUpcomingMealsCollection.findOne({
-          _id: new ObjectId(id),
-        });
-        const meal = upcomingMeal.mainMealData;
-        await allMealsCollection.insertOne(meal);
-        await allUpcomingMealsCollection.deleteOne({
-          _id: new ObjectId(id),
-        });
-        res.send({ success: true });
-      } catch (error) {
-        res.send(error);
+    app.post(
+      "/from-upcoming-to-meals/:id",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req.params.id;
+        console.log(id);
+        try {
+          const upcomingMeal = await allUpcomingMealsCollection.findOne({
+            _id: new ObjectId(id),
+          });
+          const meal = upcomingMeal.mainMealData;
+          await allMealsCollection.insertOne(meal);
+          await allUpcomingMealsCollection.deleteOne({
+            _id: new ObjectId(id),
+          });
+          res.send({ success: true });
+        } catch (error) {
+          res.send(error);
+        }
       }
-    });
+    );
   } finally {
   }
 }
