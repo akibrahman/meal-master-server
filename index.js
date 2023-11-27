@@ -157,16 +157,20 @@ async function run() {
     //! Get all Users Admin
     app.get("/all-users", verifyToken, verifyAdmin, async (req, res) => {
       const search = req.query.search;
-
-      const result = await usersCollection
+      const page = parseInt(req.query.page);
+      const itemPerPage = 10;
+      const users = await usersCollection
         .find({
           $or: [
             { name: { $regex: new RegExp(search, "i") } },
             { email: { $regex: new RegExp(search, "i") } },
           ],
         })
+        .skip(itemPerPage * page)
+        .limit(itemPerPage)
         .toArray();
-      res.send(result);
+      const count = await usersCollection.countDocuments();
+      res.send({ users, count });
     });
 
     //! Make one user Admin - Admin
@@ -235,8 +239,15 @@ async function run() {
 
     //! Get All meals - Admin Page
     app.get("/all-meals-admin", verifyToken, verifyAdmin, async (req, res) => {
-      const result = await allMealsCollection.find().toArray();
-      res.send(result);
+      const pageNumber = parseInt(req.query.page);
+      const itemPerPage = 10;
+      const meals = await allMealsCollection
+        .find()
+        .skip(pageNumber * itemPerPage)
+        .limit(itemPerPage)
+        .toArray();
+      const count = await allMealsCollection.countDocuments();
+      res.send({ meals, count });
     });
 
     //! Delete a Meal - Admin Page
@@ -533,9 +544,11 @@ async function run() {
       async (req, res) => {
         const sort = req.query.sort;
         const dir = req.query.dir;
+        const pageNumber = parseInt(req.query.page);
+        const itemPerPage = 10;
         const sortField =
           sort == "sbl" ? "likes" : sort == "sbr" ? "reviews" : null;
-        const result = await reviewsCollection
+        const reviews = await reviewsCollection
           .aggregate([
             {
               $project: { mealId: { $toObjectId: "$mealId" } },
@@ -566,15 +579,20 @@ async function run() {
               },
             },
           ])
+          .skip(itemPerPage * pageNumber)
+          .limit(itemPerPage)
           .toArray();
-        res.send(result);
+        const count = await reviewsCollection.countDocuments();
+        res.send({ reviews, count });
       }
     );
 
     //! All Reviews - User
     app.get("/my-reviews-aggrigate", verifyToken, async (req, res) => {
       const email = req.query.email;
-      const result = await reviewsCollection
+      const page = parseInt(req.query.page);
+      const itemPerPage = 10;
+      const reviews = await reviewsCollection
         .aggregate([
           {
             $project: {
@@ -601,8 +619,11 @@ async function run() {
             },
           },
         ])
+        .skip(itemPerPage * page)
+        .limit(itemPerPage)
         .toArray();
-      res.send(result);
+      const count = await reviewsCollection.countDocuments();
+      res.send({ reviews, count });
     });
 
     //! Get Role
@@ -674,7 +695,9 @@ async function run() {
       verifyAdmin,
       async (req, res) => {
         const search = req.query.search;
-        const result = await requestedMealCollection
+        const page = parseInt(req.query.page);
+        const itemPerPage = 10;
+        const requestedMeals = await requestedMealCollection
           .aggregate([
             {
               $project: {
@@ -704,8 +727,11 @@ async function run() {
               },
             },
           ])
+          .skip(itemPerPage * page)
+          .limit(itemPerPage)
           .toArray();
-        res.send(result);
+        const count = await requestedMealCollection.countDocuments();
+        res.send({ requestedMeals, count });
       }
     );
 
@@ -713,7 +739,9 @@ async function run() {
     app.get("/my-requested-meals", verifyToken, async (req, res) => {
       const email = req.query.email;
       const sort = req.query.sort;
-      const result = await requestedMealCollection
+      const page = parseInt(req.query.page);
+      const itemPerPage = 10;
+      const requestedMeals = await requestedMealCollection
         .aggregate([
           {
             $project: {
@@ -745,8 +773,11 @@ async function run() {
             },
           },
         ])
+        .skip(itemPerPage * page)
+        .limit(itemPerPage)
         .toArray();
-      res.send(result);
+      const count = await requestedMealCollection.countDocuments();
+      res.send({ requestedMeals, count });
     });
 
     //! Update a Requested meal's status - Admin
@@ -777,8 +808,15 @@ async function run() {
     );
     //! Get all Upcoming Meals
     app.get("/all-upcoming-meals", async (req, res) => {
-      const result = await allUpcomingMealsCollection.find().toArray();
-      res.send(result);
+      const page = parseInt(req.query.page);
+      const itemPerPage = 10;
+      const upcomingMeals = await allUpcomingMealsCollection
+        .find()
+        .skip(page * itemPerPage)
+        .limit(itemPerPage)
+        .toArray();
+      const count = await allUpcomingMealsCollection.countDocuments();
+      res.send({ upcomingMeals, count });
     });
 
     //! From Upcoming Meals to Meals
