@@ -176,6 +176,13 @@ async function run() {
       res.send(result);
     });
 
+    //! Get one user - User
+    app.get("/my-profile", async (req, res) => {
+      const email = req.query.email;
+      const user = await usersCollection.findOne({ email });
+      res.send(user);
+    });
+
     //!  Get all meals - Meals Page
     app.get("/all-meals", async (req, res) => {
       const search = req.query.search;
@@ -212,10 +219,22 @@ async function run() {
     //! Delete a Meal - Admin Page
     app.delete("/delete-a-meal-admin/:id", async (req, res) => {
       const id = req.params.id;
-      const result = await allMealsCollection.deleteOne({
-        _id: new ObjectId(id),
-      });
-      res.send(result);
+      try {
+        await allMealsCollection.deleteOne({
+          _id: new ObjectId(id),
+        });
+        await requestedMealCollection.deleteOne({ mealId: id });
+        await reviewsCollection.deleteOne({ mealId: id });
+        await usersCollection.updateMany(
+          { likings: { $in: [id] } },
+          {
+            $pull: { likings: id },
+          }
+        );
+        res.send({ success: true });
+      } catch (error) {
+        res.send({ success: true, error });
+      }
     });
 
     //! Get one Meal
