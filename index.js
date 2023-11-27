@@ -147,6 +147,8 @@ async function run() {
       res.send(result);
     });
 
+    //! Update user's Profile
+
     //! Get all Users Admin
     app.get("/all-users", async (req, res) => {
       const search = req.query.search;
@@ -181,6 +183,17 @@ async function run() {
       const email = req.query.email;
       const user = await usersCollection.findOne({ email });
       res.send(user);
+    });
+
+    //! Update User's Profile
+    app.patch("/update-my-profile/:email", async (req, res) => {
+      const email = req.params.email;
+      const data = await req.body;
+      const result = await usersCollection.updateOne(
+        { email },
+        { $set: { about: data } }
+      );
+      res.send(result);
     });
 
     //!  Get all meals - Meals Page
