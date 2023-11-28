@@ -18,7 +18,12 @@ const {
 //! Middlewares
 app.use(
   cors({
-    origin: ["http://localhost:5176", "http://localhost:5174"],
+    origin: [
+      "http://localhost:5176",
+      "http://localhost:5174",
+      "https://mealmaster-akib.web.app",
+      "https://mealmaster-akib.firebaseapp.com",
+    ],
     credentials: true,
     optionsSuccessStatus: 200,
   })
@@ -216,7 +221,11 @@ async function run() {
       const category = req.query.category;
       const sbp = req.query.sbp;
 
-      const result = await allMealsCollection
+      const page = parseInt(req.query.page);
+      const limit = parseInt(req.query.limit);
+      const count = await allMealsCollection.countDocuments();
+
+      const meals = await allMealsCollection
         .find({
           $and: [
             { mealTitle: { $regex: new RegExp(search, "i") } },
@@ -226,8 +235,10 @@ async function run() {
           ],
         })
         .sort({ price: sbp == "l2h" ? 1 : -1 })
+        .skip(page)
+        .limit(limit)
         .toArray();
-      res.send(result);
+      res.send({ meals, count });
     });
 
     //! Get All meals - Home Page
@@ -806,7 +817,7 @@ async function run() {
         }
       }
     );
-    //! Get all Upcoming Meals
+    //! Get all Upcoming Meals - Admin
     app.get("/all-upcoming-meals", async (req, res) => {
       const page = parseInt(req.query.page);
       const itemPerPage = 10;
@@ -817,6 +828,12 @@ async function run() {
         .toArray();
       const count = await allUpcomingMealsCollection.countDocuments();
       res.send({ upcomingMeals, count });
+    });
+
+    //! Get all Upcoming Meals - User
+    app.get("/all-upcoming-meals-user", async (req, res) => {
+      const upcomingMeals = await allUpcomingMealsCollection.find().toArray();
+      res.send(upcomingMeals);
     });
 
     //! From Upcoming Meals to Meals
