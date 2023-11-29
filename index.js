@@ -733,6 +733,13 @@ async function run() {
       res.send(result);
     });
 
+    //! Get all Payments
+    app.get("/all-payments", verifyToken, verifyAdmin, async (req, res) => {
+      const payments = await paymentsCollection.find().toArray();
+      const count = await paymentsCollection.countDocuments();
+      res.send({ payments, count });
+    });
+
     //! Check meal requested or not
     app.get("/check-requested-meal", async (req, res) => {
       const id = req.query.id;
