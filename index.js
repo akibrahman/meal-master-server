@@ -197,6 +197,54 @@ async function run() {
       }
     );
 
+    //! Get Admin Profile
+    app.get("/admin-profile", verifyToken, verifyAdmin, async (req, res) => {
+      const email = req.query.email;
+      const user = await usersCollection.findOne({ email });
+      res.send(user);
+    });
+
+    //! Admin Profile Data
+    app.get(
+      "/admin-profile-data",
+      // verifyToken,
+      // verifyAdmin,
+      async (req, res) => {
+        const email = req.query.email;
+        const requestedMealsCount =
+          await requestedMealCollection.countDocuments();
+        const servedMeal = await requestedMealCollection
+          .find({ status: "delivered" })
+          .toArray();
+        const pendingMeal = await requestedMealCollection
+          .find({ status: "pending" })
+          .toArray();
+        const payment = await paymentsCollection
+          .aggregate([
+            {
+              $project: { amount: 1 },
+            },
+            {
+              $group: {
+                _id: null,
+                totalAmount: { $sum: "$amount" },
+              },
+            },
+          ])
+          .toArray();
+        const addedMeal = await allMealsCollection
+          .find({ distributorEmail: email })
+          .toArray();
+        res.send({
+          requestedMealsCount,
+          servedMealCount: servedMeal.length,
+          pendingMealCount: pendingMeal.length,
+          paymentAmount: payment[0].totalAmount,
+          addedMealCount: addedMeal.length,
+        });
+      }
+    );
+
     //! Get one user - User
     app.get("/my-profile", verifyToken, async (req, res) => {
       const email = req.query.email;
@@ -223,7 +271,19 @@ async function run() {
 
       const page = parseInt(req.query.page);
       const limit = parseInt(req.query.limit);
-      const count = await allMealsCollection.countDocuments();
+      // const count = await allMealsCollection.countDocuments();
+
+      const mealsCount = await allMealsCollection
+        .find({
+          $and: [
+            { mealTitle: { $regex: new RegExp(search, "i") } },
+            {
+              mealType: category == "all" ? { $exists: true } : category,
+            },
+          ],
+        })
+        .sort({ price: sbp == "l2h" ? 1 : -1 })
+        .toArray();
 
       const meals = await allMealsCollection
         .find({
@@ -238,7 +298,7 @@ async function run() {
         .skip(page)
         .limit(limit)
         .toArray();
-      res.send({ meals, count });
+      res.send({ meals, count: mealsCount.length });
     });
 
     //! Get All meals - Home Page
