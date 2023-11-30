@@ -109,7 +109,7 @@ async function run() {
     });
 
     //!Token Remove
-    app.post("/remove-jwt", (req, res) => {
+    app.post("/remove-jwt", async (req, res) => {
       res
         .clearCookie("MealMaster_Token", { maxAge: 0 })
         .send({ success: true });
@@ -271,7 +271,7 @@ async function run() {
 
       const page = parseInt(req.query.page);
       const limit = parseInt(req.query.limit);
-      // const count = await allMealsCollection.countDocuments();
+      const total = await allMealsCollection.countDocuments();
 
       const mealsCount = await allMealsCollection
         .find({
@@ -298,7 +298,7 @@ async function run() {
         .skip(page)
         .limit(limit)
         .toArray();
-      res.send({ meals, count: mealsCount.length });
+      res.send({ meals, count: mealsCount.length, total });
     });
 
     //! Get All meals - Home Page
@@ -693,12 +693,40 @@ async function run() {
         .skip(itemPerPage * page)
         .limit(itemPerPage)
         .toArray();
-      const count = await reviewsCollection.countDocuments();
-      res.send({ reviews, count });
+      const reviewsCount = await reviewsCollection
+        .aggregate([
+          {
+            $project: {
+              mealId: { $toObjectId: "$mealId" },
+              email: 1,
+              rating: 1,
+              review: 1,
+            },
+          },
+          {
+            $lookup: {
+              from: "AllMeals",
+              localField: "mealId",
+              foreignField: "_id",
+              as: "meal",
+            },
+          },
+          {
+            $unwind: "$meal",
+          },
+          {
+            $match: {
+              email: { $eq: email },
+            },
+          },
+        ])
+        .toArray();
+
+      res.send({ reviews, count: reviewsCount.length });
     });
 
     //! Get Role
-    app.get("/get-role", verifyToken, async (req, res) => {
+    app.get("/get-role", async (req, res) => {
       const email = req.query.email;
       const result = await usersCollection.findOne({ email });
       res.send(result.role);
@@ -854,8 +882,41 @@ async function run() {
         .skip(itemPerPage * page)
         .limit(itemPerPage)
         .toArray();
-      const count = await requestedMealCollection.countDocuments();
-      res.send({ requestedMeals, count });
+      const requestedMealsCount = await requestedMealCollection
+        .aggregate([
+          {
+            $project: {
+              name: 1,
+              email: 1,
+              status: 1,
+              mealId: { $toObjectId: "$mealId" },
+            },
+          },
+          {
+            $lookup: {
+              from: "AllMeals",
+              localField: "mealId",
+              foreignField: "_id",
+              as: "meal",
+            },
+          },
+          {
+            $unwind: "$meal",
+          },
+          {
+            $match: {
+              email: { $eq: email },
+            },
+          },
+          {
+            $sort: {
+              status: sort == "del" ? 1 : -1,
+            },
+          },
+        ])
+        .toArray();
+      // const count = await requestedMealCollection.countDocuments();
+      res.send({ requestedMeals, count: requestedMealsCount.length });
     });
 
     //! Update a Requested meal's status - Admin
