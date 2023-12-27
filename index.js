@@ -6,8 +6,11 @@ const stripe = require("stripe")(
   "sk_test_51JNWijH1dNBPX31WU3trCGNpFtwUCRrNU5dgI1EmM4jOsLeyzCMcp7mQSEyPJO2z0rGKu8D7CL0lQrjcZopKVQVk00LI9e0Rpl"
 );
 require("dotenv").config();
+//!------------------------------------------------
+
 const port = process.env.PORT || 5000;
 const app = express();
+
 const {
   MongoClient,
   ServerApiVersion,
@@ -19,8 +22,7 @@ const {
 app.use(
   cors({
     origin: [
-      "http://localhost:5176",
-      "http://localhost:5174",
+      "http://localhost:5173",
       "https://mealmaster-akib.web.app",
       "https://mealmaster-akib.firebaseapp.com",
     ],
@@ -61,6 +63,7 @@ app.get("/", (req, res) => {
   res.send("Mealmaster is Running");
 });
 
+//! All Methodes of Meal Master
 async function run() {
   try {
     // await client.connect();
@@ -81,6 +84,18 @@ async function run() {
     const requestedMealCollection = client
       .db("MealMasterDB")
       .collection("AllRequestedMeals");
+    const conversationsCollection = client
+      .db("MealMasterDB")
+      .collection("AllConversations");
+
+    //! Test
+    // app.put("/test", async (req, res) => {
+    //   const data = usersCollection.updateMany(
+    //     {},
+    //     { $set: { isChatted: false } }
+    //   );
+    //   res.send(data);
+    // });
 
     //! Verify Admin
     const verifyAdmin = async (req, res, next) => {
@@ -725,6 +740,12 @@ async function run() {
       res.send({ reviews, count: reviewsCount.length });
     });
 
+    //! Get User
+    app.get("/get-user", async (req, res) => {
+      const email = req.query.email;
+      const user = await usersCollection.findOne({ email });
+      res.send(user);
+    });
     //! Get Role
     app.get("/get-role", async (req, res) => {
       const email = req.query.email;
@@ -987,6 +1008,32 @@ async function run() {
         }
       }
     );
+
+    //!-------------------------------------------------
+    //! Create Conversation
+    app.post("/conversation", verifyToken, async (req, res) => {
+      try {
+        const data = await conversationsCollection.insertOne({
+          members: [req.body.userId, "admin"],
+        });
+        res.send(data);
+      } catch (error) {
+        res.status(500).json(error);
+      }
+    });
+    //! Update user's status of 'isChatted'
+    app.patch("/user-chatting/:id", async (req, res) => {
+      const id = req.params.id;
+      try {
+        await usersCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: { isChatted: true } }
+        );
+        res.send({ message: `${id} is chatting` });
+      } catch (error) {
+        res.status(500).send(error);
+      }
+    });
   } finally {
   }
 }
