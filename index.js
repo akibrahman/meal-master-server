@@ -87,6 +87,9 @@ async function run() {
     const conversationsCollection = client
       .db("MealMasterDB")
       .collection("AllConversations");
+    const messagesCollection = client
+      .db("MealMasterDB")
+      .collection("AllMessages");
 
     //! Test
     // app.put("/test", async (req, res) => {
@@ -1032,6 +1035,106 @@ async function run() {
         res.send({ message: `${id} is chatting` });
       } catch (error) {
         res.status(500).send(error);
+      }
+    });
+    //! Get all Conversations
+    app.get(
+      "/all-conversations",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const conversations = await conversationsCollection
+          .aggregate([
+            {
+              $unwind: "$members",
+            },
+            {
+              $match: {
+                members: { $ne: "admin" },
+              },
+            },
+            {
+              $project: {
+                userId: "$members",
+                memberId: { $toObjectId: "$members" },
+              },
+            },
+            {
+              $lookup: {
+                from: "AllUsers",
+                localField: "memberId",
+                foreignField: "_id",
+                as: "user",
+              },
+            },
+            {
+              $unwind: "$user",
+            },
+            {
+              $project: {
+                userId: 1,
+                name: "$user.name",
+                email: "$user.email",
+                photo: "$user.photo",
+              },
+            },
+          ])
+          .toArray();
+        console.log(conversations);
+        res.send(conversations);
+      }
+    );
+    //! Get one conversation - User
+    app.get("/user-conversation/:userId", async (req, res) => {
+      const userId = req.params.userId;
+      try {
+        const conversation = await conversationsCollection.findOne({
+          members: { $in: [userId] },
+        });
+        res.send(conversation);
+      } catch (error) {
+        res.status(500).send(error);
+      }
+    });
+    //! Get Messages - Admin
+    app.get(
+      "/messages/:conversationId",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        try {
+          const conversationId = req.params.conversationId;
+          const messages = await messagesCollection
+            .find({ conversationId })
+            .toArray();
+          res.send(messages);
+        } catch (error) {
+          res.status(500).send(error);
+        }
+      }
+    );
+    //! Get Messages - User
+    app.get("/user-messages/:userId", verifyToken, async (req, res) => {
+      try {
+        const userId = req.params.userId;
+        const messages = await messagesCollection
+          .find({
+            $or: [{ sender: userId }, { receiver: userId }],
+          })
+          .toArray();
+        res.send(messages);
+      } catch (error) {
+        res.status(500).send(error);
+      }
+    });
+    //! Add Message - User
+    app.post("/user-message", async (req, res) => {
+      try {
+        const data = req.body;
+        const result = await messagesCollection.insertOne(data);
+        res.send(result);
+      } catch (error) {
+        res.status(500).json(error);
       }
     });
   } finally {
