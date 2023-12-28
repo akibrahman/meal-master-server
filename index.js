@@ -1127,8 +1127,8 @@ async function run() {
         res.status(500).send(error);
       }
     });
-    //! Add Message - User
-    app.post("/user-message", async (req, res) => {
+    //! Add Message
+    app.post("/send-message", verifyToken, async (req, res) => {
       try {
         const data = req.body;
         const result = await messagesCollection.insertOne(data);
